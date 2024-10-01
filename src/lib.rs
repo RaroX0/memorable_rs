@@ -15,7 +15,7 @@ fn set_id(&mut self, id: &str) {
 }
 "#]
 pub trait MemoDoc {
-    fn get_id(&mut self) -> &str;
+    fn get_id(&self) -> &str;
     fn set_id(&mut self, id: &str);
 }
 
@@ -103,11 +103,14 @@ fn main() {
 }
 ```"#]
     pub fn push(&mut self, mut data: T) -> io::Result<()>{
-        for doc in self.docs.iter_mut() {
+        for doc in self.docs.iter() {
             if doc.get_id() == data.get_id() {
                 let da_id: &str = data.get_id();
                 return Err(StdError::new(ErrorKind::AlreadyExists, format!("{da_id} already exists in Data_Base.")));
             }
+        }
+        if data.get_id() == "" {
+            data.set_id(&uuid::Uuid::new_v4().to_string());
         }
         let mut file: File = File::options().truncate(false).read(true).write(true).open(&self.file_path)?;
         let mut buff: String = String::new();
@@ -164,8 +167,8 @@ fn main() {
     println!("Requested: {:#?}", f.get(data.get_id()));
 }
 ```"#]
-    pub fn get(&mut self, id: &str) -> Option<T> {
-        for doc in self.docs.iter_mut() {
+    pub fn get(&self, id: &str) -> Option<T> {
+        for doc in self.docs.iter() {
             if doc.get_id() == id {
                 return Some(doc.clone());
             }
