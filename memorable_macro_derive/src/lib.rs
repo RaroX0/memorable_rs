@@ -23,8 +23,13 @@ pub fn memodoc_macro_derive(input: TokenStream) -> TokenStream {
     let doc: Ident = ast.ident;
     quote! {
         impl MemoDoc for #doc {
-            fn get_id(&self) -> &str {
-                &self.uuid
+            fn get_id(&mut self) -> &str {
+                if &self.uuid != "" {
+                    return &self.uuid;
+                }
+                let id: String = uuid::Uuid::new_v4().to_string();
+                self.set_id(&id);
+                self.get_id()
             }
             fn set_id(&mut self, id: &str) {
                 self.uuid = id.to_string();
