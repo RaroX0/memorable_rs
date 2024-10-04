@@ -33,7 +33,7 @@ pub trait MemoDoc {
 }
 ```
 ### Derive Macro: `MemoDoc`
-You can use the derive macro to automatically implement the `MemoDoc` trait for your structs.
+You can use the derive macro to implement the `MemoDoc` trait for your structs automatically.
 ```rust
 #[derive(MemoDoc)]
 pub struct MyDocument {
@@ -48,7 +48,7 @@ pub struct MyDocument {
 Opens and fetches data from the `docs` database.
 ```rust
 impl<T: Serialize + for<'de> Deserialize<'de> + MemoDoc + Clone> DataBase<T> {
-    pub fn open(path: &str) -> Result<DataBase<T>, StdError> {
+    pub fn open(path: &str) -> io::Result<DataBase<T>> {
         // Implementation
     }
 }
