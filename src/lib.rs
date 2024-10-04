@@ -133,7 +133,7 @@ fn main() {
     println!("{:#?}", f.datas);
 }
 ```"#]
-    pub fn push(&mut self, mut data: T) -> io::Result<()>{
+    pub async fn push(&mut self, mut data: T) -> io::Result<()>{
         match self.docs.get(data.get_id()) {
             Some(_) => {
                 return Err(StdError::new(ErrorKind::AlreadyExists, "data already exists"));
@@ -184,7 +184,7 @@ fn main() {
     println!("Remaining: {:#?}", f.datas);
 }
 ```"#]
-    pub fn del(&mut self, id: &str) -> io::Result<T> {
+    pub async fn del(&mut self, id: &str) -> io::Result<T> {
         match self.docs.remove(id) {
             Some(v) => {
                 let mut file: File = File::options().truncate(true).write(true).open(&self.file_path)?;
@@ -217,7 +217,7 @@ fn main() {
     println!("Requested: {:#?}", f.get(data.get_id()));
 }
 ```"#]
-    pub fn get(&self, id: &str) -> Option<T> {
+    pub async fn get(&self, id: &str) -> Option<T> {
         self.docs.get(id).cloned()
     }
 }
