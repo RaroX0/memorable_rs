@@ -1,4 +1,4 @@
-use std::{fs::File, io::{self, ErrorKind, Read, Seek, Write}};
+use std::{collections::HashMap, fs::File, io::{self, ErrorKind, Read, Seek, Write}};
 use std::io::Error as StdError;
 use serde::{Deserialize, Serialize};
 
@@ -6,13 +6,21 @@ use serde::{Deserialize, Serialize};
 #[doc = r#"Trait necessary to push a doc to the database.
 # Implementation
 ```
-fn get_id(&self) -> &str {
-    &self.uuid
+use memorable::MemoDoc;
+struct Doc {
+    uuid: String
 }
 
-fn set_id(&mut self, id: &str) {
-    self.uuid = id.to_string();
+impl MemoDoc for Doc {
+    fn get_id(&self) -> &str {
+        &self.uuid
+    }
+
+    fn set_id(&mut self, id: &str) {
+        self.uuid = id.to_string();
+    }
 }
+```
 "#]
 pub trait MemoDoc {
     fn get_id(&self) -> &str;
@@ -23,13 +31,23 @@ pub trait MemoDoc {
 expose the `tasks vector` for eazy editability.
 # Examples
 ```
-let f = DataBase::open("./db.json"); /// Returns a loaded instance of `DataBase`.
-let tasks: Vec<Task> = f.tasks; /// List of added Tasks.
+use memorable::DataBase;
+use memorable::memorable_macro_derive::MemoDoc;
+
+#[derive(MemoDoc, Serialize, Deserialize)]
+struct Task {
+    uuid: String
+}
+
+fn main() {
+    let f = DataBase::open("./db.json").unwrap();
+    let tasks: Vec<Task> = f.docs;
+}
 ```"#]
 #[derive(Debug, Clone)]
 pub struct DataBase<T: Serialize + for<'de> Deserialize<'de> + MemoDoc + Clone> {
     file_path: String,
-    pub docs: Vec<T>
+    pub docs: HashMap<String, T>
 }
 
 impl<T: Serialize + for<'de> Deserialize<'de> + MemoDoc + Clone> DataBase<T> {
@@ -38,15 +56,16 @@ impl<T: Serialize + for<'de> Deserialize<'de> + MemoDoc + Clone> DataBase<T> {
 
 # Errors
 
-This function may throw an `error` due to a number of different reasons. Some of them are listed bellow:
-    1. Function will throw an `io::error::Error` if there is any problem locating or opening the database's json file.
-    2. Function will throw an `serde_json::error:Error` if there is any problem serializing or de-serializing the data in the file.
+This function may throw an `error` due to a number of different reasons. Some of them are listed below:
+    1. Function will return an `io::error::Error` if there is any problem locating or opening the database's json file.
+    2. Function will return an `serde_json::error:Error` if there is any problem serializing or de-serializing the data in the file.
 
 # Examples
 ```
+use memorable::DataBase;
 fn main() {
     let f = DataBase::open("./path.json").unwrap();
-    println!("Tasks: {#:?}", f.docs);
+    println!("Tasks: {:#?}", f.docs);
 }
 ```"#]
     pub fn open(path: &str) -> Result<DataBase<T>, StdError> {
@@ -67,11 +86,11 @@ fn main() {
             None => String::new()
         };
 
-        let docs: Vec<T> = match serde_json::from_str(&buff) {
+        let docs: HashMap<String, T> = match serde_json::from_str(&buff) {
             Ok(t) => t,
             Err(e) => {
                 println!("Err: {e}");
-                let op: Vec<T> = Vec::new();
+                let op: HashMap<String, T> = HashMap::<String, T>::new();
                 File::create(path)?.write_all(
                     serde_json::to_string_pretty(&op)?.as_bytes()
                 )?;
@@ -95,19 +114,31 @@ This function may throw an `error` due to a number of different reasons. Some of
     3. Function will throw an `io:error:Error` is input `data.get_id()` already exists in the data_base.
 # Examples
 ```
+use serde::Serialize;
+use serde::Deserialize;
+use memorable::DataBase;
+use memorable_macro_derive::MemoDoc;
+use memorable::MemoDoc;
+
+#[derive(MemoDoc, Serialize, Deserialize, Default)]
+struct Data {
+    uuid: String,
+    // other fields.
+}
+
 fn main() {
     let data = Data::default();
-    let mut f = DataBase::open("./path.json");
+    let mut f = DataBase::open("./path.json").unwrap();
     f.push(data).unwrap();
     println!("{:#?}", f.datas);
 }
 ```"#]
     pub fn push(&mut self, mut data: T) -> io::Result<()>{
-        for doc in self.docs.iter() {
-            if doc.get_id() == data.get_id() {
-                let da_id: &str = data.get_id();
-                return Err(StdError::new(ErrorKind::AlreadyExists, format!("{da_id} already exists in Data_Base.")));
-            }
+        match self.docs.get(data.get_id()) {
+            Some(_) => {
+                return Err(StdError::new(ErrorKind::AlreadyExists, "data already exists"));
+            },
+            None => {}
         }
         if data.get_id() == "" {
             data.set_id(&uuid::Uuid::new_v4().to_string());
@@ -115,11 +146,11 @@ fn main() {
         let mut file: File = File::options().truncate(false).read(true).write(true).open(&self.file_path)?;
         let mut buff: String = String::new();
         file.read_to_string(&mut buff)?;
-        let mut docs: Vec<T> = serde_json::from_str(&buff).unwrap_or_else(|e| {
+        let mut docs: HashMap<String, T> = serde_json::from_str(&buff).unwrap_or_else(|e| {
             println!("Err: {}", e);
-            Vec::<T>::new()
+            HashMap::<String, T>::new()
         });
-        docs.push(data);
+        docs.insert(data.get_id().to_string(), data);
         file.rewind()?;
         file.write_all(serde_json::to_string_pretty(&docs)?.as_bytes())?;
         self.docs = docs;
@@ -133,6 +164,17 @@ fn main() {
 Function will throw an `io::error::Error` if no data was found with specified id.
 # Examples
 ```
+use serde::Serialize;
+use serde::Deserialize;
+use memorable::DataBase;
+use memorable::memorable_macro_derive::MemoDoc;
+
+#[derive(MemoDoc, Serialize, Deserialize, Default)]
+struct Data {
+    uuid: String,
+    // other fields.
+}
+
 fn main() {
     let data = Data::default();
     let mut f = DataBase::open("./path.json");
@@ -143,23 +185,31 @@ fn main() {
 }
 ```"#]
     pub fn del(&mut self, id: &str) -> io::Result<T> {
-        for (indx, doc) in self.clone().docs.iter_mut().enumerate() {
-            if doc.get_id() == id {
-                self.docs.remove(indx);
+        match self.docs.remove(id) {
+            Some(v) => {
                 let mut file: File = File::options().truncate(true).write(true).open(&self.file_path)?;
                 let buff: String = serde_json::to_string_pretty(&self.docs)?;
                 file.rewind()?;
                 file.write_all(buff.as_bytes())?;
-                return Ok(doc.clone());
-            }
+                Ok(v)
+            },
+            None => Err(StdError::new(ErrorKind::NotFound, format!("Data with specified ID ({id}) was not found.")))
         }
-        Err(StdError::new(ErrorKind::NotFound, format!("Data with specified ID ({id}) was not found.")))
     }
 
 #[doc = r#"Fetches a data to the database.
 
 # Examples
 ```
+use memorable::DataBase;
+use memorable::memorable_macro_derive::MemoDoc;c
+
+#[derive(MemoDoc, Serialize, Deserialize, Default)]
+struct Data {
+    uuid: String,
+    // other fields.
+}
+
 fn main() {
     let data = Data::default();
     let mut f = DataBase::open("./path.json");
@@ -168,11 +218,6 @@ fn main() {
 }
 ```"#]
     pub fn get(&self, id: &str) -> Option<T> {
-        for doc in self.docs.iter() {
-            if doc.get_id() == id {
-                return Some(doc.clone());
-            }
-        }
-        None
+        self.docs.get(id).cloned()
     }
 }

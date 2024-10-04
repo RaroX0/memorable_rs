@@ -5,7 +5,6 @@ version = "1.0.0"
 edition = "2021"
 authors = ["Rayray <Discord: acnooo>"]
 description = "MEMOry-duRABLE (Memorable_rs) is a simple local database system that's extremely light weight, blazingly fast and super simple to implement."
-licence = "MIT"
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -14,3 +13,4 @@ licence = "MIT"
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
 uuid = { version = "1.10.0", features = ["v4"] }
+tokio = { version = "1.40.0", features = ["macros"] }
